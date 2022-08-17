@@ -24,26 +24,28 @@ namespace BankServices.Repo.Implementations
         {
             var recieverAccountNumber = await _paymentContext.Customers
                                .FirstOrDefaultAsync(c => c.CustomerAccountNumber == bankTransferDTO.RecieverAcctNumber)!;
+            //Check if the reciever's account number exist in the database
             if (recieverAccountNumber == null)
                 return new ResponseModel { State = 0, Msg = "Reciever Account number does not exist", Data = bankTransferDTO.RecieverAcctNumber };
 
             var senderAccount = await _paymentContext.Customers
                    .FirstOrDefaultAsync(c => c.EmailAddress == bankTransferDTO.SenderEmail &&
                    c.Password == bankTransferDTO.SenderPassword)!;
-        
 
+            //Check if the Sender's Email and Password exists in the database
             if (senderAccount == null)
                 return new ResponseModel 
                 { 
                   State = 0, 
                   Msg = "Senders Account Email or Password is Incorrect or Does not exist"
                 };
-
+            //Check if the Sender has sufficient account balance
             if(senderAccount.CustomerAccountBalanace < bankTransferDTO.Amount)
                 return new ResponseModel { State = 0, 
                                            Msg = "Insufficient Account Balance", 
                                            Data = senderAccount.CustomerAccountBalanace! };
 
+            //Update the senders account balance and the recivers account balance
             senderAccount.CustomerAccountBalanace -= bankTransferDTO.Amount;
             recieverAccountNumber.CustomerAccountBalanace += bankTransferDTO.Amount;
 
@@ -58,8 +60,10 @@ namespace BankServices.Repo.Implementations
                 TransactionStatus = true
             };
 
+            //Insert into the Transaction History table to keep track of all transfers made and their status
             await _paymentContext.TransactionHistories.AddAsync(transaction);
 
+            //Save to the DB
             int ret = await _paymentContext.SaveChangesAsync();
 
             if(ret <= 0)
